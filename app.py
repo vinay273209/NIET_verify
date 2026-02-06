@@ -4,7 +4,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-EXCEL_FILE = r"D:\ml NIET 3rd\pps\datast\students.xlsx"
+EXCEL_FILE = r"D:/ml NIET 3rd/pps/qr_verify_app/students.xlsx"
 
 @app.route("/")
 def index():
@@ -49,4 +49,4 @@ def verify_student():
     })
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=False)
