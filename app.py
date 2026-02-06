@@ -1,10 +1,12 @@
 from flask import Flask, render_template, request, jsonify
 import pandas as pd
 from datetime import datetime
+import os
 
 app = Flask(__name__)
 
-EXCEL_FILE = r"D:/ml NIET 3rd/pps/qr_verify_app/students.xlsx"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+EXCEL_FILE = os.path.join(BASE_DIR, "data", "students.xlsx")
 
 @app.route("/")
 def index():
