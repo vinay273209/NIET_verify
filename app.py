@@ -203,6 +203,32 @@ def verify_student():
 
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+    
+@app.route("/admin/keys", methods=["POST"])
+def admin_keys():
+    data = request.get_json()
+    if not data or data.get("admin_secret") != ADMIN_SECRET:
+        return jsonify({"status": "unauthorized"}), 401
+
+    if not os.path.exists(PASSKEY_FILE):
+        return jsonify({"status": "success", "keys": []})
+
+    df = pd.read_excel(PASSKEY_FILE, dtype=str)
+    df.columns = df.columns.str.strip()
+
+    keys = []
+    for _, row in df.iterrows():
+        keys.append({
+            "erp_id": str(row.get("erp_id", "")).strip(),
+            "pass_key": str(row.get("pass_key", "")).strip(),
+            "active": str(row.get("active", "")).strip().lower()
+        })
+
+    return jsonify({
+        "status": "success",
+        "keys": keys
+    })
+
 
 
 # --------------------------------------------------

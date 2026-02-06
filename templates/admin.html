@@ -3,116 +3,138 @@
 <head>
     <meta charset="UTF-8">
     <title>Admin Panel - QR Verification</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <style>
         body {
-            font-family: Arial, sans-serif;
             background: #f4f6f8;
-            padding: 20px;
         }
-        .container {
-            max-width: 600px;
-            margin: auto;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        .card {
+            margin-bottom: 20px;
         }
-        h2 {
-            text-align: center;
-        }
-        input, button {
-            width: 100%;
-            padding: 10px;
-            margin-top: 10px;
-        }
-        button {
-            background: #007bff;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        button:hover {
-            background: #0056b3;
-        }
-        .danger {
-            background: #dc3545;
-        }
-        .danger:hover {
-            background: #b02a37;
-        }
-        .success {
-            color: green;
-            font-weight: bold;
-            margin-top: 10px;
-        }
-        .error {
-            color: red;
-            font-weight: bold;
-            margin-top: 10px;
-        }
-        .stats {
-            background: #eef2f5;
-            padding: 10px;
-            border-radius: 6px;
-            margin-top: 10px;
-        }
-        .key-box {
-            background: #e9ecef;
-            padding: 10px;
-            margin-top: 10px;
-            text-align: center;
-            font-weight: bold;
-            letter-spacing: 2px;
+        .key-badge {
+            font-size: 1rem;
+            letter-spacing: 1px;
         }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>🔐 Admin Panel</h2>
+<div class="container mt-4">
+
+    <h3 class="text-center mb-4">🔐 Admin Panel</h3>
 
     <!-- Admin Secret -->
-    <input type="password" id="adminSecret" placeholder="Enter Admin Secret">
-
-    <hr>
-
-    <!-- Generate Key -->
-    <h3>Generate Volunteer Pass Key</h3>
-    <input type="text" id="erpId" placeholder="Enter Volunteer ERP ID">
-    <button onclick="generateKey()">Generate Pass Key</button>
-    <div id="generatedKey" class="key-box">No key generated</div>
-
-    <hr>
-
-    <!-- Delete Key -->
-    <h3>Disable Volunteer Pass Key</h3>
-    <input type="text" id="deleteKeyInput" placeholder="Enter Pass Key to Disable">
-    <button class="danger" onclick="deleteKey()">Disable Pass Key</button>
-
-    <hr>
-
-    <!-- Stats -->
-    <h3>Verification Status</h3>
-    <button onclick="loadStats()">Refresh Status</button>
-    <div class="stats">
-        <p>👥 Total Students: <span id="total">-</span></p>
-        <p>✅ Verified: <span id="verified">-</span></p>
-        <p>❌ Unverified: <span id="unverified">-</span></p>
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Admin Authentication</h5>
+            <input type="password" id="adminSecret" class="form-control" placeholder="Enter Admin Secret">
+        </div>
     </div>
 
-    <div id="message" class=""></div>
+    <!-- Generate Key -->
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Generate Volunteer Pass Key</h5>
+            <div class="row g-2">
+                <div class="col-md-8">
+                    <input type="text" id="erpId" class="form-control" placeholder="Enter ERP ID">
+                </div>
+                <div class="col-md-4">
+                    <button class="btn btn-primary w-100" onclick="generateKey()">Generate</button>
+                </div>
+            </div>
+
+            <div id="generatedKey" class="alert alert-success mt-3 d-none"></div>
+        </div>
+    </div>
+
+    <!-- Show Keys Button -->
+    <div class="card">
+        <div class="card-body text-center">
+            <button class="btn btn-warning" onclick="verifyAndShowKeys()">
+                🔍 Show All Pass Keys
+            </button>
+            <p class="text-muted mt-2 mb-0">
+                (Admin secret required)
+            </p>
+        </div>
+    </div>
+
+    <!-- Pass Keys Table -->
+    <div class="card d-none" id="keysCard">
+        <div class="card-body">
+            <h5 class="card-title">Volunteer Pass Keys</h5>
+
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" id="keysTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ERP ID</th>
+                            <th>Pass Key</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Filled dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Verification Status</h5>
+            <button class="btn btn-secondary mb-3" onclick="loadStats()">Refresh</button>
+
+            <ul class="list-group">
+                <li class="list-group-item">👥 Total Students: <span id="total">-</span></li>
+                <li class="list-group-item">✅ Verified: <span id="verified">-</span></li>
+                <li class="list-group-item">❌ Unverified: <span id="unverified">-</span></li>
+            </ul>
+        </div>
+    </div>
+
 </div>
 
 <script>
-async function generateKey() {
-    clearMessage();
+/* ================= VERIFY ADMIN & SHOW KEYS ================= */
+async function verifyAndShowKeys() {
     const secret = document.getElementById("adminSecret").value;
-    const erpId = document.getElementById("erpId").value;
+    if (!secret) {
+        alert("Enter admin secret first");
+        return;
+    }
 
-    if (!erpId) {
-        showError("ERP ID is required");
+    const res = await fetch("/admin/keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ admin_secret: secret })
+    });
+
+    const data = await res.json();
+    if (data.status !== "success") {
+        alert("Invalid admin secret");
+        return;
+    }
+
+    document.getElementById("keysCard").classList.remove("d-none");
+    renderTable(data.keys);
+}
+
+/* ================= GENERATE KEY ================= */
+async function generateKey() {
+    const secret = document.getElementById("adminSecret").value;
+    const erp = document.getElementById("erpId").value.trim();
+
+    if (!erp) {
+        alert("ERP ID required");
         return;
     }
 
@@ -121,48 +143,72 @@ async function generateKey() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             admin_secret: secret,
-            erp_id: erpId
+            erp_id: erp
         })
     });
 
     const data = await res.json();
+
     if (data.status === "success") {
-        document.getElementById("generatedKey").innerText = data.pass_key;
-        showSuccess("Pass key generated successfully");
+        document.getElementById("generatedKey").classList.remove("d-none");
+        document.getElementById("generatedKey").innerHTML =
+            `Pass Key for <b>${data.erp_id}</b>: 
+             <span class="badge bg-success key-badge">${data.pass_key}</span>`;
+
+        verifyAndShowKeys(); // refresh table
     } else {
-        showError(data.message || "Unauthorized");
+        alert("Unauthorized or error");
     }
 }
 
-async function deleteKey() {
-    clearMessage();
-    const secret = document.getElementById("adminSecret").value;
-    const passKey = document.getElementById("deleteKeyInput").value;
+/* ================= RENDER TABLE ================= */
+function renderTable(keys) {
+    const tbody = document.querySelector("#keysTable tbody");
+    tbody.innerHTML = "";
 
-    if (!passKey) {
-        showError("Pass key is required");
-        return;
-    }
+    keys.forEach(k => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${k.erp_id || "-"}</td>
+            <td><span class="badge bg-info key-badge">${k.pass_key}</span></td>
+            <td>${k.active === "yes" ? "Active" : "Disabled"}</td>
+            <td>
+                <button class="btn btn-sm btn-danger"
+                        onclick="disableKey('${k.pass_key}')">
+                        Disable
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+/* ================= DISABLE KEY ================= */
+async function disableKey(key) {
+    if (!confirm("Disable this pass key?")) return;
+
+    const secret = document.getElementById("adminSecret").value;
 
     const res = await fetch("/admin/delete-key", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             admin_secret: secret,
-            pass_key: passKey
+            pass_key: key
         })
     });
 
     const data = await res.json();
     if (data.status === "success") {
-        showSuccess("Pass key disabled successfully");
+        alert("Pass key disabled");
+        verifyAndShowKeys();
     } else {
-        showError(data.message || "Unauthorized");
+        alert("Error disabling key");
     }
 }
 
+/* ================= STATS ================= */
 async function loadStats() {
-    clearMessage();
     const secret = document.getElementById("adminSecret").value;
 
     const res = await fetch("/admin/stats", {
@@ -177,26 +223,8 @@ async function loadStats() {
         document.getElementById("verified").innerText = data.verified;
         document.getElementById("unverified").innerText = data.unverified;
     } else {
-        showError("Unauthorized");
+        alert("Unauthorized");
     }
-}
-
-function showSuccess(msg) {
-    const el = document.getElementById("message");
-    el.className = "success";
-    el.innerText = msg;
-}
-
-function showError(msg) {
-    const el = document.getElementById("message");
-    el.className = "error";
-    el.innerText = msg;
-}
-
-function clearMessage() {
-    const el = document.getElementById("message");
-    el.className = "";
-    el.innerText = "";
 }
 </script>
 

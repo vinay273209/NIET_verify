@@ -41,8 +41,6 @@
 
         .danger { background: #dc3545; }
 
-        .hidden { display: none; }
-
         #reader { width: 100%; margin-top: 10px; }
 
         /* ===== MODAL ===== */
@@ -52,44 +50,79 @@
             z-index: 999;
             left: 0; top: 0;
             width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6);
+            background: rgba(0,0,0,0.7);
         }
         .modal-content {
             background: white;
-            margin: 15% auto;
-            padding: 20px;
-            width: 90%;
-            max-width: 400px;
-            border-radius: 8px;
+            margin: 12% auto;
+            padding: 25px;
+            width: 92%;
+            max-width: 420px;
+            border-radius: 10px;
             text-align: center;
         }
-        .success { color: green; font-weight: bold; }
-        .info { color: #333; font-weight: bold; }
-        .error { color: red; font-weight: bold; }
+
+        /* ===== STATUS STYLES ===== */
+        .status-success {
+            color: #0a8f08;
+            font-size: 32px;
+            font-weight: bold;
+        }
+        .status-success span {
+            font-size: 60px;
+            display: block;
+        }
+
+        .status-already {
+            color: #d35400;
+            font-size: 36px;
+            font-weight: bold;
+        }
+        .status-already span {
+            font-size: 70px;
+            display: block;
+        }
+
+        .student-info {
+            margin-top: 15px;
+            font-size: 16px;
+            text-align: left;
+        }
+
+        .student-info p {
+            margin: 6px 0;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>📷 Student QR Verification</h2>
+    <h2>Student QR Verification</h2>
 
     <!-- Volunteer Key -->
     <div id="keySection">
-        <input type="text" id="volunteerKey" placeholder="Enter Volunteer Pass Key">
+        <input type="text" id="volunteerKey" placeholder="Enter  Pass Key">
         <button onclick="saveKey()">Submit Key</button>
     </div>
 
     <!-- Scan Section -->
-    <div id="scanSection" class="hidden">
+    <div id="scanSection" style="display:none;">
         <div id="reader"></div>
         <button class="danger" onclick="logoutKey()">Change Volunteer Key</button>
     </div>
 </div>
 
-<!-- ===== POPUP MODAL ===== -->
+<!-- ===== RESULT MODAL ===== -->
 <div id="resultModal" class="modal">
     <div class="modal-content">
-        <div id="modalMessage"></div>
+        <div id="statusBlock"></div>
+
+        <div class="student-info">
+            <p><b>Name:</b> <span id="stuName"></span></p>
+            <p><b>UUID:</b> <span id="stuUUID"></span></p>
+            <p><b>Check-in Time:</b> <span id="stuTime"></span></p>
+        </div>
+
         <button onclick="scanNext()">Scan Another Student</button>
     </div>
 </div>
@@ -118,20 +151,19 @@ function logoutKey() {
     localStorage.clear();
     volunteerKey = null;
     stopScanner();
-    document.getElementById("scanSection").classList.add("hidden");
-    document.getElementById("keySection").classList.remove("hidden");
+    document.getElementById("scanSection").style.display = "none";
+    document.getElementById("keySection").style.display = "block";
 }
 
 /* ===== CAMERA ===== */
 function showScanSection() {
-    document.getElementById("keySection").classList.add("hidden");
-    document.getElementById("scanSection").classList.remove("hidden");
+    document.getElementById("keySection").style.display = "none";
+    document.getElementById("scanSection").style.display = "block";
     startScanner();
 }
 
 function startScanner() {
     if (scanning) return;
-
     scanner = new Html5Qrcode("reader");
     scanning = true;
 
@@ -166,35 +198,40 @@ async function verifyStudent(uuid) {
     });
 
     const data = await res.json();
-
-    if (data.status === "valid") {
-        if (data.already_verified) {
-            showModal(
-                "⚠️ Already Verified",
-                data
-            );
-        } else {
-            showModal(
-                "✅ Verified Successfully",
-                data
-            );
-        }
-    } else {
-        showModal("❌ Verification Failed", { name: "", uuid: "", time: "" });
-    }
+    showPopup(data);
 }
 
-/* ===== MODAL ===== */
-function showModal(title, data) {
+/* ===== POPUP ===== */
+function showPopup(data) {
     const modal = document.getElementById("resultModal");
-    const msg = document.getElementById("modalMessage");
+    const statusBlock = document.getElementById("statusBlock");
 
-    msg.innerHTML = `
-        <div class="${title.includes('Verified') ? 'success' : 'info'}">${title}</div>
-        <p><b>Name:</b> ${data.name || "-"}</p>
-        <p><b>UUID:</b> ${data.uuid || "-"}</p>
-        <p><b>Check-in Time:</b> ${data.time || "-"}</p>
-    `;
+    if (data.status === "valid" && data.already_verified) {
+        statusBlock.innerHTML = `
+            <div class="status-already">
+                <span>⚠</span>
+                ALREADY VERIFIED
+            </div>
+        `;
+    } else if (data.status === "valid") {
+        statusBlock.innerHTML = `
+            <div class="status-success">
+                <span>✔</span>
+                VERIFIED SUCCESSFULLY
+            </div>
+        `;
+    } else {
+        statusBlock.innerHTML = `
+            <div class="status-already">
+                <span>✖</span>
+                VERIFICATION FAILED
+            </div>
+        `;
+    }
+
+    document.getElementById("stuName").innerText = data.name || "-";
+    document.getElementById("stuUUID").innerText = data.uuid || "-";
+    document.getElementById("stuTime").innerText = data.time || "-";
 
     modal.style.display = "block";
 }
