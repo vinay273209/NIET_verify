@@ -3,120 +3,206 @@
 <head>
     <meta charset="UTF-8">
     <title>Student QR Verification</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- Bootstrap 5 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- QR Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
-    <!-- QR Scanner -->
-    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            padding: 20px;
+        }
+        .container {
+            max-width: 500px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h2 { text-align: center; }
+
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 16px;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover { background: #0056b3; }
+
+        .danger { background: #dc3545; }
+
+        .hidden { display: none; }
+
+        #reader { width: 100%; margin-top: 10px; }
+
+        /* ===== MODAL ===== */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 999;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+        }
+        .modal-content {
+            background: white;
+            margin: 15% auto;
+            padding: 20px;
+            width: 90%;
+            max-width: 400px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .success { color: green; font-weight: bold; }
+        .info { color: #333; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+    </style>
 </head>
+<body>
 
-<body class="bg-light">
+<div class="container">
+    <h2>📷 Student QR Verification</h2>
 
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
+    <!-- Volunteer Key -->
+    <div id="keySection">
+        <input type="text" id="volunteerKey" placeholder="Enter Volunteer Pass Key">
+        <button onclick="saveKey()">Submit Key</button>
+    </div>
 
-            <!-- Card -->
-            <div class="card shadow-lg">
-                <div class="card-header text-center bg-primary text-white">
-                    <h4>Student QR Verification System</h4>
-                </div>
+    <!-- Scan Section -->
+    <div id="scanSection" class="hidden">
+        <div id="reader"></div>
+        <button class="danger" onclick="logoutKey()">Change Volunteer Key</button>
+    </div>
+</div>
 
-                <div class="card-body text-center">
-
-                    <!-- QR Reader -->
-                    <div id="reader" class="mb-3"></div>
-
-                    <!-- Result -->
-                    <div id="result"></div>
-
-                    <!-- Verify Another Button -->
-                    <button id="verifyAnotherBtn"
-                            class="btn btn-secondary mt-3 d-none"
-                            onclick="startScanner()">
-                        Verify Another
-                    </button>
-                </div>
-            </div>
-
-        </div>
+<!-- ===== POPUP MODAL ===== -->
+<div id="resultModal" class="modal">
+    <div class="modal-content">
+        <div id="modalMessage"></div>
+        <button onclick="scanNext()">Scan Another Student</button>
     </div>
 </div>
 
 <script>
-let html5QrCode;
+let volunteerKey = localStorage.getItem("volunteer_key");
+let scanner = null;
+let scanning = false;
+
+if (volunteerKey) showScanSection();
+
+/* ===== KEY HANDLING ===== */
+function saveKey() {
+    const key = document.getElementById("volunteerKey").value.trim();
+    if (!key) {
+        alert("Volunteer key required");
+        return;
+    }
+    localStorage.clear();
+    volunteerKey = key.toUpperCase();
+    localStorage.setItem("volunteer_key", volunteerKey);
+    showScanSection();
+}
+
+function logoutKey() {
+    localStorage.clear();
+    volunteerKey = null;
+    stopScanner();
+    document.getElementById("scanSection").classList.add("hidden");
+    document.getElementById("keySection").classList.remove("hidden");
+}
+
+/* ===== CAMERA ===== */
+function showScanSection() {
+    document.getElementById("keySection").classList.add("hidden");
+    document.getElementById("scanSection").classList.remove("hidden");
+    startScanner();
+}
 
 function startScanner() {
-    document.getElementById("result").innerHTML = "";
-    document.getElementById("verifyAnotherBtn").classList.add("d-none");
+    if (scanning) return;
 
-    html5QrCode = new Html5Qrcode("reader");
-    html5QrCode.start(
+    scanner = new Html5Qrcode("reader");
+    scanning = true;
+
+    scanner.start(
         { facingMode: "environment" },
         { fps: 10, qrbox: 250 },
-        onScanSuccess
+        (decodedText) => {
+            scanning = false;
+            stopScanner();
+            verifyStudent(decodedText);
+        },
+        () => {}
     );
 }
 
 function stopScanner() {
-    if (html5QrCode) {
-        html5QrCode.stop().then(() => {
-            document.getElementById("reader").innerHTML = "";
-        });
+    if (scanner) {
+        scanner.stop().catch(() => {});
+        scanner = null;
     }
 }
 
-function onScanSuccess(decodedText) {
-    stopScanner();
-
-    fetch("/verify", {
+/* ===== VERIFY ===== */
+async function verifyStudent(uuid) {
+    const res = await fetch("/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uuid: decodedText })
-    })
-    .then(res => res.json())
-    .then(data => {
-
-        if (data.status === "invalid") {
-            document.getElementById("result").innerHTML = `
-                <div class="alert alert-danger fw-bold fs-4">
-                    ❌ INVALID STUDENT
-                </div>
-            `;
-        }
-        else if (data.already_verified) {
-            document.getElementById("result").innerHTML = `
-                <div class="alert alert-dark fw-bold fs-3">
-                    ⚠️ ALREADY VERIFIED
-                </div>
-                <div class="alert alert-secondary">
-                    <strong>Time:</strong> ${data.time}
-                </div>
-            `;
-        }
-        else {
-            document.getElementById("result").innerHTML = `
-                <div class="alert alert-success fw-bold fs-4">
-                    ✅ VERIFIED SUCCESSFULLY
-                </div>
-
-                <ul class="list-group text-start">
-                    <li class="list-group-item"><strong>Name:</strong> ${data.name}</li>
-                    <li class="list-group-item"><strong>Email:</strong> ${data.email}</li>
-                    <li class="list-group-item"><strong>Branch:</strong> ${data.branch}</li>
-                    <li class="list-group-item"><strong>UUID:</strong> ${data.uuid}</li>
-                    <li class="list-group-item"><strong>Time:</strong> ${data.time}</li>
-                </ul>
-            `;
-        }
-
-        document.getElementById("verifyAnotherBtn").classList.remove("d-none");
+        body: JSON.stringify({
+            uuid: uuid,
+            volunteer_key: volunteerKey
+        })
     });
+
+    const data = await res.json();
+
+    if (data.status === "valid") {
+        if (data.already_verified) {
+            showModal(
+                "⚠️ Already Verified",
+                data
+            );
+        } else {
+            showModal(
+                "✅ Verified Successfully",
+                data
+            );
+        }
+    } else {
+        showModal("❌ Verification Failed", { name: "", uuid: "", time: "" });
+    }
 }
 
-// Start scanner on load
-startScanner();
+/* ===== MODAL ===== */
+function showModal(title, data) {
+    const modal = document.getElementById("resultModal");
+    const msg = document.getElementById("modalMessage");
+
+    msg.innerHTML = `
+        <div class="${title.includes('Verified') ? 'success' : 'info'}">${title}</div>
+        <p><b>Name:</b> ${data.name || "-"}</p>
+        <p><b>UUID:</b> ${data.uuid || "-"}</p>
+        <p><b>Check-in Time:</b> ${data.time || "-"}</p>
+    `;
+
+    modal.style.display = "block";
+}
+
+function scanNext() {
+    document.getElementById("resultModal").style.display = "none";
+    startScanner();
+}
 </script>
 
 </body>

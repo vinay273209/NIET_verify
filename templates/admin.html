@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Panel - QR Verification</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h2 {
+            text-align: center;
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .danger {
+            background: #dc3545;
+        }
+        .danger:hover {
+            background: #b02a37;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .stats {
+            background: #eef2f5;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        .key-box {
+            background: #e9ecef;
+            padding: 10px;
+            margin-top: 10px;
+            text-align: center;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🔐 Admin Panel</h2>
+
+    <!-- Admin Secret -->
+    <input type="password" id="adminSecret" placeholder="Enter Admin Secret">
+
+    <hr>
+
+    <!-- Generate Key -->
+    <h3>Generate Volunteer Pass Key</h3>
+    <input type="text" id="erpId" placeholder="Enter Volunteer ERP ID">
+    <button onclick="generateKey()">Generate Pass Key</button>
+    <div id="generatedKey" class="key-box">No key generated</div>
+
+    <hr>
+
+    <!-- Delete Key -->
+    <h3>Disable Volunteer Pass Key</h3>
+    <input type="text" id="deleteKeyInput" placeholder="Enter Pass Key to Disable">
+    <button class="danger" onclick="deleteKey()">Disable Pass Key</button>
+
+    <hr>
+
+    <!-- Stats -->
+    <h3>Verification Status</h3>
+    <button onclick="loadStats()">Refresh Status</button>
+    <div class="stats">
+        <p>👥 Total Students: <span id="total">-</span></p>
+        <p>✅ Verified: <span id="verified">-</span></p>
+        <p>❌ Unverified: <span id="unverified">-</span></p>
+    </div>
+
+    <div id="message" class=""></div>
+</div>
+
+<script>
+async function generateKey() {
+    clearMessage();
+    const secret = document.getElementById("adminSecret").value;
+    const erpId = document.getElementById("erpId").value;
+
+    if (!erpId) {
+        showError("ERP ID is required");
+        return;
+    }
+
+    const res = await fetch("/admin/generate-key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            admin_secret: secret,
+            erp_id: erpId
+        })
+    });
+
+    const data = await res.json();
+    if (data.status === "success") {
+        document.getElementById("generatedKey").innerText = data.pass_key;
+        showSuccess("Pass key generated successfully");
+    } else {
+        showError(data.message || "Unauthorized");
+    }
+}
+
+async function deleteKey() {
+    clearMessage();
+    const secret = document.getElementById("adminSecret").value;
+    const passKey = document.getElementById("deleteKeyInput").value;
+
+    if (!passKey) {
+        showError("Pass key is required");
+        return;
+    }
+
+    const res = await fetch("/admin/delete-key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            admin_secret: secret,
+            pass_key: passKey
+        })
+    });
+
+    const data = await res.json();
+    if (data.status === "success") {
+        showSuccess("Pass key disabled successfully");
+    } else {
+        showError(data.message || "Unauthorized");
+    }
+}
+
+async function loadStats() {
+    clearMessage();
+    const secret = document.getElementById("adminSecret").value;
+
+    const res = await fetch("/admin/stats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ admin_secret: secret })
+    });
+
+    const data = await res.json();
+    if (data.status === "success") {
+        document.getElementById("total").innerText = data.total_students;
+        document.getElementById("verified").innerText = data.verified;
+        document.getElementById("unverified").innerText = data.unverified;
+    } else {
+        showError("Unauthorized");
+    }
+}
+
+function showSuccess(msg) {
+    const el = document.getElementById("message");
+    el.className = "success";
+    el.innerText = msg;
+}
+
+function showError(msg) {
+    const el = document.getElementById("message");
+    el.className = "error";
+    el.innerText = msg;
+}
+
+function clearMessage() {
+    const el = document.getElementById("message");
+    el.className = "";
+    el.innerText = "";
+}
+</script>
+
+</body>
+</html>
